@@ -1,0 +1,55 @@
+version: '2'
+
+services:
+  rocketchat:
+    image: rocketchat/rocket.chat:latest
+    restart: unless-stopped
+#    volumes:
+#      - /opt/rocketchat/uploads:/app/uploads
+#      - /opt/rocketchat:/app
+    environment:
+      - PORT=3000
+      - ROOT_URL=https://chat.keep-linux.tk/
+      - MONGO_URL=mongodb://mongo:27017/rocketchat
+      - MONGO_OPLOG_URL=mongodb://mongo:27017/local
+#      - MAIL_URL=smtp://smtp.email
+    depends_on:
+      - mongo
+    ports:
+      - 3100:3000
+
+  mongo:
+    image: mongo:3.2
+    restart: unless-stopped
+    ports:
+     - 27017:27017
+    volumes:
+     - /opt/rocketchat/mongo/data/db:/data/db
+    command: mongod --smallfiles --oplogSize 128 --replSet rs0 --storageEngine=mmapv1
+
+  # Este container server somente para executar o comando de init do replica set do mongodb.
+  # Executará o comando e se autodeletará (não ficará sendo executado pelo Docker)
+  mongo-init-replica:
+    image: mongo:3.2
+    command: 'mongo mongo/rocketchat --eval "rs.initiate({ _id: ''rs0'', members: [ { _id: 0, host: ''localhost:27017'' } ]})"'
+    depends_on:
+      - mongo
+
+# hubot: é um chatbot bem popular para rocketchat (Adicione o usuário do bot antes deste container e mude a senha somente depois que iniciar este container)
+#  hubot:
+#    image: rocketchat/hubot-rocketchat:latest
+#    restart: unless-stopped
+#    environment:
+#      - ROCKETCHAT_URL=https://chat.keep-linux.tk:3100
+#      - ROCKETCHAT_ROOM=GENERAL
+#      - ROCKETCHAT_USER=bot
+#      - ROCKETCHAT_PASSWORD=botpassword
+#      - BOT_NAME=bot
+# Você pode adicionar quantos scripts desejar aqui. Eles precisam ser instaláveis via NPM.
+#      - EXTERNAL_SCRIPTS=hubot-help,hubot-seen,hubot-links,hubot-diagnostics
+#    depends_on:
+#      - rocketchat
+#    volumes:
+#      - /opt/rocketchat/scripts:/home/hubot/scripts
+#    ports:
+#      - 3001:8080
